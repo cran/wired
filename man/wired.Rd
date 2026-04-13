@@ -103,7 +103,7 @@ Builds a joint probabilistic forecast across series and horizons using adaptive 
 \examples{
 \donttest{
  set.seed(1)
- n <- 200
+ n <- 300
  ts_set <- data.frame(
    A = 100 + cumsum(rnorm(n, 0, 1)),
    B =  80 + cumsum(rnorm(n, 0, 1))

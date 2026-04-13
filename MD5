@@ -1,8 +1,8 @@
-e6c02d75447454bde9208416c0fc40f0 *DESCRIPTION
+c28ca72acc5f163e4ad18586f5d338a0 *DESCRIPTION
 8e79b39c346069bfb593f16f0f24a3af *NAMESPACE
-499b83c576117080bbc7a8496bdf62a8 *NEWS.md
-1b584b2e1fcf65a2b3ebda757e432964 *R/main.R
+5362f60d8b9444b0febb4f888b28e87e *NEWS.md
+4bfc937c4a8ea660866b23e684e8a79f *R/main.R
 0cce8e1a9fc5bec5821aabf3144938a7 *R/wired.R
-e6d5bab7b3fc3e0e416ad94b3c8b06ea *man/wired.Rd
+1f09d4206c52e449520d3ba9d82c855a *man/wired.Rd
 7d8adee1abd0ca2374db995af6745d12 *tests/testthat.R
-13fb178965db297584a05a5ed1fbe4e6 *tests/testthat/test-main.R
+8791b69e53c635dfc76384c025aa09b1 *tests/testthat/test-main.R

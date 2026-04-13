@@ -106,7 +106,7 @@ testthat::test_that("wired rfun_both is consistent with rfun_trafo and rfun_leve
 
   set.seed(3)
 
-  n <- 130
+  n <- 150
   ts_set <- data.frame(
     A = 100 + cumsum(rnorm(n, 0, 1)),
     B =  95 + cumsum(rnorm(n, 0, 1))

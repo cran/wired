@@ -67,7 +67,7 @@
 #' @examples
 #'\donttest{
 #'  set.seed(1)
-#'  n <- 200
+#'  n <- 300
 #'  ts_set <- data.frame(
 #'    A = 100 + cumsum(rnorm(n, 0, 1)),
 #'    B =  80 + cumsum(rnorm(n, 0, 1))
@@ -127,7 +127,16 @@ wired <- function(
     ...
 ) {
 
-  check_feasibility(ts_set, future, n_testing)
+  ###check_feasibility(ts_set, future, n_testing)
+
+  feas <- check_feasibility(ts_set, future, n_testing)
+
+  if (!isTRUE(feas$feasible)) {
+    stop(feas$message)
+  }
+
+  future <- feas$suggested_future
+  n_testing <- feas$suggested_n_testing
 
   mode <- match.arg(mode, c("additive", "multiplicative", "log_multiplicative"))
 
@@ -1574,6 +1583,144 @@ plot_wired <- function(
 #' @keywords internal
 #'
 check_feasibility <- function(
+    ts_set,
+    future,
+    n_testing,
+    min_train_frac = 1/3,
+    min_points_per_model = 20
+) {
+  # normalize input
+  if (is.matrix(ts_set) || is.data.frame(ts_set)) {
+    ts_set <- as.data.frame(ts_set)
+    ts_set <- lapply(ts_set, as.numeric)
+  } else if (is.list(ts_set)) {
+    ts_set <- lapply(ts_set, as.numeric)
+  } else {
+    stop("ts_set must be a list, matrix, or data.frame of numeric series.")
+  }
+
+  lens <- vapply(ts_set, length, integer(1))
+  n_min <- min(lens)
+
+  if (n_min < 20) {
+    return(list(
+      feasible = FALSE,
+      confirmed = FALSE,
+      suggested_n_testing = NA_integer_,
+      suggested_future = NA_integer_,
+      message = sprintf(
+        "Series are too short (minimum length = %d). Need at least 20 observations.",
+        n_min
+      )
+    ))
+  }
+
+  future <- as.integer(future)
+  n_testing <- as.integer(n_testing)
+
+  # helper: feasibility check for a given (future, n_testing)
+  is_feasible_combo <- function(fut, ntest, n) {
+    if (!is.finite(fut) || fut < 1) return(FALSE)
+    if (!is.finite(ntest) || ntest < 1) return(FALSE)
+
+    max_train_end <- n - fut
+    if (max_train_end < 1) return(FALSE)
+
+    start_idx <- floor(n / 3)
+    if (start_idx > max_train_end) return(FALSE)
+
+    test_idx <- round(seq.int(
+      from = start_idx,
+      to = max_train_end,
+      length.out = ntest
+    ))
+
+    # enough training observations in earliest split
+    earliest_end <- min(test_idx)
+    earliest_train_len <- earliest_end
+
+    # enough transformed points after lag/stride for downstream predictors
+    enough_history <- (n - fut) >= min_points_per_model
+
+    earliest_train_len >= max(20, ceiling(n * min_train_frac)) && enough_history
+  }
+
+  # 1) original combination feasible -> confirm
+  if (is_feasible_combo(future, n_testing, n_min)) {
+    return(list(
+      feasible = TRUE,
+      confirmed = TRUE,
+      suggested_n_testing = n_testing,
+      suggested_future = future,
+      message = sprintf(
+        "Parameters are feasible as provided: future = %d, n_testing = %d.",
+        future, n_testing
+      )
+    ))
+  }
+
+  # 2) first try reducing n_testing, keeping future fixed
+  max_ntesting_try <- max(1L, n_testing)
+  for (nt in seq.int(from = max_ntesting_try, to = 1L, by = -1L)) {
+    if (is_feasible_combo(future, nt, n_min)) {
+      return(list(
+        feasible = TRUE,
+        confirmed = FALSE,
+        suggested_n_testing = nt,
+        suggested_future = future,
+        message = sprintf(
+          paste(
+            "Original parameters are not feasible.",
+            "Suggested feasible combination: future = %d, n_testing = %d.",
+            "Priority rule applied: reduced n_testing first."
+          ),
+          future, nt
+        )
+      ))
+    }
+  }
+
+  # 3) last resort: reduce future, then n_testing
+  for (fut in seq.int(from = future - 1L, to = 1L, by = -1L)) {
+    for (nt in seq.int(from = n_testing, to = 1L, by = -1L)) {
+      if (is_feasible_combo(fut, nt, n_min)) {
+        return(list(
+          feasible = TRUE,
+          confirmed = FALSE,
+          suggested_n_testing = nt,
+          suggested_future = fut,
+          message = sprintf(
+            paste(
+              "Original parameters are not feasible.",
+              "Suggested feasible combination: future = %d, n_testing = %d.",
+              "Priority rule applied: reduced n_testing first, then future as last resort."
+            ),
+            fut, nt
+          )
+        ))
+      }
+    }
+  }
+
+  # 4) nothing workable
+  list(
+    feasible = FALSE,
+    confirmed = FALSE,
+    suggested_n_testing = NA_integer_,
+    suggested_future = NA_integer_,
+    message = sprintf(
+      paste(
+        "No feasible combination found, even after reducing n_testing and future.",
+        "Minimum series length is %d."
+      ),
+      n_min
+    )
+  )
+}
+#'
+#'
+#'
+old_check_feasibility <- function(
     ts_set,
     future,
     n_testing,
